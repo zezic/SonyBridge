@@ -352,6 +352,9 @@ static BOOL SHCLooksLikeSonyHeadset(NSString *name) {
             ok = NO;
             error = @(exc.what());
         }
+        // The write never landed, so stop it counting as pending - otherwise the ambient read-back stays
+        // suppressed and the UI freezes on a value the headphones never took.
+        if (!ok) hp->discardAmbientChanges();
         dispatch_async(dispatch_get_main_queue(), ^{
             completion(ok, error);
         });
