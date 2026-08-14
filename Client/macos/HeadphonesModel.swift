@@ -26,6 +26,9 @@ final class HeadphonesModel: ObservableObject {
     @Published var batteryLeft = -1
     @Published var batteryRight = -1
     @Published var batteryCase = -1
+    @Published var batteryLeftCharging = false
+    @Published var batteryRightCharging = false
+    @Published var batteryCaseCharging = false
     @Published var eqPreset = 0
     @Published var supportsEqualizer = false
     @Published var eqBands = [0, 0, 0, 0, 0]
@@ -69,12 +72,7 @@ final class HeadphonesModel: ObservableObject {
 
     func refreshStatus() {
         bridge.refreshStatus {
-            self.batteryLevel = self.bridge.batteryLevel
-            self.batteryCharging = self.bridge.batteryCharging
-            self.hasDualBattery = self.bridge.hasDualBattery
-            self.batteryLeft = self.bridge.batteryLeft
-            self.batteryRight = self.bridge.batteryRight
-            self.batteryCase = self.bridge.batteryCase
+            self.syncBatteryFromBridge()
             self.eqPreset = self.bridge.eqPreset
             self.clearBass = self.bridge.clearBass
             self.dsee = self.bridge.dsee
@@ -88,6 +86,18 @@ final class HeadphonesModel: ObservableObject {
             self.hasAdaptiveVolume = self.bridge.hasAdaptiveVolume
             self.adaptiveVolume = self.bridge.adaptiveVolume
         }
+    }
+
+    private func syncBatteryFromBridge() {
+        batteryLevel = bridge.batteryLevel
+        batteryCharging = bridge.batteryCharging
+        hasDualBattery = bridge.hasDualBattery
+        batteryLeft = bridge.batteryLeft
+        batteryRight = bridge.batteryRight
+        batteryCase = bridge.batteryCase
+        batteryLeftCharging = bridge.batteryLeftCharging
+        batteryRightCharging = bridge.batteryRightCharging
+        batteryCaseCharging = bridge.batteryCaseCharging
     }
 
     func setAutoPowerOff(_ index: Int) {
@@ -121,6 +131,7 @@ final class HeadphonesModel: ObservableObject {
                 self.clearBass = self.bridge.clearBass
                 self.dsee = self.bridge.dsee
                 self.eqBands = (0..<5).map { self.bridge.equalizerBand(at: $0) }
+                self.syncBatteryFromBridge()
             }
         }
     }
