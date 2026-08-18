@@ -129,6 +129,8 @@ static const unsigned kBatteryPollEveryNTicks = 15;
 - (BOOL)speakToChat { return _hp && _hp->getSpeakToChat(); }
 - (BOOL)hasAdaptiveVolume { return _hp && _hp->hasAdaptiveVolume(); }
 - (BOOL)adaptiveVolume { return _hp && _hp->getAdaptiveVolume(); }
+- (BOOL)hasSoundQualityMode { return _hp && _hp->hasSoundQualityMode(); }
+- (BOOL)prioritizeSoundQuality { return _hp && _hp->getSoundQualityMode() == PRIOR_MODE::SOUND_QUALITY; }
 
 static BOOL SHCLooksLikeSonyHeadset(NSString *name) {
     if (name.length == 0) return NO;
@@ -387,6 +389,18 @@ static BOOL SHCLooksLikeSonyHeadset(NSString *name) {
     dispatch_async(_cmdQueue, ^{
         NSString *error = nil; BOOL ok = YES;
         try { hp->setAdaptiveVolume(enabled); } catch (std::exception &exc) { ok = NO; error = @(exc.what()); }
+        dispatch_async(dispatch_get_main_queue(), ^{ completion(ok, error); });
+    });
+}
+
+- (void)setPrioritizeSoundQuality:(BOOL)prioritize completion:(void (^)(BOOL, NSString * _Nullable))completion {
+    if (!_hp || !self.connected) { completion(NO, @"Not connected."); return; }
+    Headphones *hp = _hp.get();
+    dispatch_async(_cmdQueue, ^{
+        NSString *error = nil; BOOL ok = YES;
+        try {
+            hp->setSoundQualityMode(prioritize ? PRIOR_MODE::SOUND_QUALITY : PRIOR_MODE::STABLE_CONNECTION);
+        } catch (std::exception &exc) { ok = NO; error = @(exc.what()); }
         dispatch_async(dispatch_get_main_queue(), ^{ completion(ok, error); });
     });
 }

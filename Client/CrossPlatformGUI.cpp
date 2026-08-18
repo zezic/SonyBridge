@@ -51,6 +51,7 @@ bool CrossPlatformGUI::performGUIPass()
 				this->_drawEqualizer();
 				this->_drawDsee();
 			}
+			this->_drawSoundQualityMode();
 			this->_drawOptionalFeatures();
 			if (!this->_isV2())
 				this->_drawSurroundControls();
@@ -226,6 +227,7 @@ void CrossPlatformGUI::_pumpConnectionState()
 		this->_uiAutoPowerOff = this->_headphones.getAutoPowerOff();
 		this->_uiSpeakToChat = this->_headphones.getSpeakToChat();
 		this->_uiAdaptiveVolume = this->_headphones.getAdaptiveVolume();
+		this->_uiPrioritizeSoundQuality = this->_headphones.getSoundQualityMode() == PRIOR_MODE::SOUND_QUALITY;
 	}
 
 	// Poll the button-changeable ASM state so the app reflects changes made on the headphone itself.
@@ -265,6 +267,7 @@ void CrossPlatformGUI::_syncUIFromHeadphones()
 	this->_uiAutoPowerOff = this->_headphones.getAutoPowerOff();
 	this->_uiSpeakToChat = this->_headphones.getSpeakToChat();
 	this->_uiAdaptiveVolume = this->_headphones.getAdaptiveVolume();
+	this->_uiPrioritizeSoundQuality = this->_headphones.getSoundQualityMode() == PRIOR_MODE::SOUND_QUALITY;
 }
 
 std::string CrossPlatformGUI::_resourceBase()
@@ -501,6 +504,31 @@ void CrossPlatformGUI::_drawDsee()
 		bool v = this->_uiDsee;
 		this->_sendFeatureCommand([this, v]() { this->_headphones.setDsee(v); });
 	}
+
+	this->_endCard();
+}
+
+void CrossPlatformGUI::_drawSoundQualityMode()
+{
+	if (!this->_headphones.hasSoundQualityMode())
+		return;
+
+	if (!this->_beginCard("##sqmode")) { this->_endCard(); return; }
+	this->_cardTitle("Bluetooth Connection");
+
+	if (this->_headphones.hasCodec())
+		ImGui::TextDisabled("Current codec: %s", this->_headphones.getCodec().c_str());
+
+	int mode = this->_uiPrioritizeSoundQuality ? 0 : 1;
+	ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+	if (ImGui::Combo("##sqprio", &mode, "Prioritize Sound Quality\0Prioritize Stable Connection\0\0"))
+	{
+		this->_uiPrioritizeSoundQuality = (mode == 0);
+		PRIOR_MODE v = mode == 0 ? PRIOR_MODE::SOUND_QUALITY : PRIOR_MODE::STABLE_CONNECTION;
+		this->_sendFeatureCommand([this, v]() { this->_headphones.setSoundQualityMode(v); });
+	}
+
+	ImGui::TextDisabled("The headphones reconnect to apply this.");
 
 	this->_endCard();
 }

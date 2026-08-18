@@ -44,6 +44,7 @@ private:
 	void _drawASMControls();
 	void _drawEqualizer();
 	void _drawDsee();
+	void _drawSoundQualityMode();
 	void _drawOptionalFeatures();
 	void _drawSurroundControls();
 
@@ -94,6 +95,7 @@ private:
 	int _uiAutoPowerOff = 0;
 	bool _uiSpeakToChat = false;
 	bool _uiAdaptiveVolume = false;
+	bool _uiPrioritizeSoundQuality = true;
 	int _uiSoundPosition = 0;
 	int _uiVptType = 0;
 

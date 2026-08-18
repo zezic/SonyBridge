@@ -430,6 +430,25 @@ void Headphones::probeCapabilities()
 		auto r = this->_conn.sendCommandAndReadResponse({ (char)V2Command::BTNMODE_GET, (char)V2Command::SUB_SPEAK_TO_CHAT }, V2Command::BTNMODE_RET, V2Command::SUB_SPEAK_TO_CHAT);
 		if (r.size() >= 3) { std::lock_guard g(this->_propertyMtx); this->_speakToChat = (r[2] == 0); this->_hasSpeakToChat = true; }
 	} catch (...) {}
+
+	// Sound quality mode. A model exposes it under exactly one sub-type - LDAC-capable devices
+	// (WF/WH-1000XM*) answer the LDAC variant, the rest the plain one - so probe both and keep whichever
+	// replied. Both share the same 3-byte layout: RET e7 <sub> <PRIOR_MODE>.
+	for (unsigned char sub : { V2Command::SUB_CONNECTION_MODE_LDAC, V2Command::SUB_CONNECTION_MODE })
+	{
+		try {
+			auto r = this->_conn.sendCommandAndReadResponse({ (char)V2Command::AUDIO_GET, (char)sub }, V2Command::AUDIO_RET, sub);
+			// Only 0x00/0x01 are modes we can round-trip; anything else means we've misread the layout.
+			if (r.size() >= 3 && (r[2] == 0x00 || r[2] == 0x01))
+			{
+				std::lock_guard g(this->_propertyMtx);
+				this->_soundQualityModeSubType = sub;
+				this->_soundQualityMode = (PRIOR_MODE)(unsigned char)r[2];
+				this->_hasSoundQualityMode = true;
+				break;
+			}
+		} catch (...) {}
+	}
 }
 
 bool Headphones::hasAutoPowerOff() { return this->_hasAutoPowerOff; }
@@ -465,6 +484,19 @@ void Headphones::setAdaptiveVolume(bool enabled)
 	this->_conn.sendCommand({ (char)V2Command::BTNMODE_SET, (char)V2Command::SUB_ADAPTIVE_VOLUME, (char)(enabled ? 0x00 : 0x01) });
 	std::lock_guard guard(this->_propertyMtx);
 	this->_adaptiveVolume = enabled;
+}
+
+bool Headphones::hasSoundQualityMode() { return this->_hasSoundQualityMode; }
+PRIOR_MODE Headphones::getSoundQualityMode() { return this->_soundQualityMode; }
+void Headphones::setSoundQualityMode(PRIOR_MODE mode)
+{
+	if (!this->_hasSoundQualityMode) return;
+	// SET: e8 <sub> <PRIOR_MODE>, on the same sub-type the probe found.
+	// Fire-and-forget on purpose: the device tears the A2DP link down to re-negotiate the codec, which
+	// takes the RFCOMM channel with it, so waiting for a reply here would just time out.
+	this->_conn.sendCommand({ (char)V2Command::AUDIO_SET, (char)this->_soundQualityModeSubType, (char)mode });
+	std::lock_guard guard(this->_propertyMtx);
+	this->_soundQualityMode = mode;
 }
 
 // requestAmbientState() deliberately refuses to adopt device state while a change is pending, so a write

@@ -43,6 +43,8 @@ final class HeadphonesModel: ObservableObject {
     @Published var speakToChat = false
     @Published var hasAdaptiveVolume = false
     @Published var adaptiveVolume = false
+    @Published var hasSoundQualityMode = false
+    @Published var prioritizeSoundQuality = true
     @Published var deviceMac = ""
     @Published var protocolVersion = ""
 
@@ -50,6 +52,8 @@ final class HeadphonesModel: ObservableObject {
 
     private var pollTimer: Timer?
     private var dynamicTimer: Timer?
+    // Set when we issue a write that we know makes the device drop the link on purpose.
+    private var expectingLinkReset = false
 
     func connect() {
         connecting = true
@@ -85,6 +89,8 @@ final class HeadphonesModel: ObservableObject {
             self.speakToChat = self.bridge.speakToChat
             self.hasAdaptiveVolume = self.bridge.hasAdaptiveVolume
             self.adaptiveVolume = self.bridge.adaptiveVolume
+            self.hasSoundQualityMode = self.bridge.hasSoundQualityMode
+            self.prioritizeSoundQuality = self.bridge.prioritizeSoundQuality
         }
     }
 
@@ -116,6 +122,21 @@ final class HeadphonesModel: ObservableObject {
         adaptiveVolume = on
         errorMessage = nil
         bridge.setAdaptiveVolume(on) { ok, error in if !ok, let e = error { self.errorMessage = e } }
+    }
+
+    func setPrioritizeSoundQuality(_ on: Bool) {
+        prioritizeSoundQuality = on
+        errorMessage = nil
+        // The headphones re-negotiate the audio link for the new priority, which drops RFCOMM with it.
+        // Arm the connection watcher so that shows up as an explanation rather than as a bare failure.
+        expectingLinkReset = true
+        bridge.setPrioritizeSoundQuality(on) { ok, error in
+            if !ok {
+                self.expectingLinkReset = false
+                self.prioritizeSoundQuality = self.bridge.prioritizeSoundQuality
+                if let error = error { self.errorMessage = error }
+            }
+        }
     }
 
     // Poll the button-changeable state so the app stays in sync when you use the headphone's own controls.
@@ -194,7 +215,10 @@ final class HeadphonesModel: ObservableObject {
             if self.connected && !self.bridge.connected {
                 self.connected = false
                 self.deviceName = ""
-                self.errorMessage = "Headphones disconnected."
+                self.errorMessage = self.expectingLinkReset
+                    ? "Sound quality mode changed — the headphones reconnect on their own. Connect again in a few seconds."
+                    : "Headphones disconnected."
+                self.expectingLinkReset = false
                 self.stopWatchingConnection()
                 self.stopDynamicPolling()
             }

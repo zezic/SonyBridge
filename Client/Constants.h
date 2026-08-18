@@ -60,9 +60,21 @@ namespace V2Command
 	inline constexpr unsigned char EQ_GET       = 0x56; // payload: 56 00
 	inline constexpr unsigned char EQ_RET       = 0x57; // reply: 57 00 <preset> 06 <bass+10> <b1..b5 +10>
 	inline constexpr unsigned char EQ_SET       = 0x58; // preset: 58 00 <preset> 00 ; custom: 58 00 A0 06 <bass+10> <b1..b5 +10>
-	inline constexpr unsigned char DSEE_GET     = 0xe6; // payload: e6 01
-	inline constexpr unsigned char DSEE_RET     = 0xe7; // reply: e7 01 <enabled 0/1>
-	inline constexpr unsigned char DSEE_SET     = 0xe8; // payload: e8 01 <enabled 0/1>
+	// AUDIO parameter family. The opcode trio is shared by every audio parameter; the sub-type byte
+	// (payload[1]) picks which one, so DSEE and the sound-quality mode differ only in that byte.
+	inline constexpr unsigned char AUDIO_GET    = 0xe6; // GET e6 <sub>      -> RET e7 <sub> <value>
+	inline constexpr unsigned char AUDIO_RET    = 0xe7;
+	inline constexpr unsigned char AUDIO_SET    = 0xe8; // SET e8 <sub> <value>
+	inline constexpr unsigned char DSEE_GET     = AUDIO_GET; // payload: e6 01
+	inline constexpr unsigned char DSEE_RET     = AUDIO_RET; // reply: e7 01 <enabled 0/1>
+	inline constexpr unsigned char DSEE_SET     = AUDIO_SET; // payload: e8 01 <enabled 0/1>
+	// AUDIO sub-types (Sony's AudioInquiredType). Only the ones we actually send are listed.
+	inline constexpr unsigned char SUB_CONNECTION_MODE      = 0x00; // sound quality mode, plain
+	inline constexpr unsigned char SUB_UPSCALING            = 0x01; // DSEE
+	inline constexpr unsigned char SUB_CONNECTION_MODE_LDAC = 0x02; // same, on LDAC-capable models
+	// Deliberately NOT sent: 0x05 (CONNECTION_MODE_CLASSIC_AUDIO_LE_AUDIO). Its SET carries a fourth byte
+	// that also switches the device between Classic and LE Audio, which would drop the link for reasons
+	// the user didn't ask for. Devices that only answer 0x05 simply report the feature as unsupported.
 	inline constexpr unsigned char FW_GET       = 0x04; // payload: 04 02  -> RET 05 02 <ascii version...>
 	inline constexpr unsigned char FW_RET       = 0x05;
 	inline constexpr unsigned char CODEC_GET    = 0x12; // payload: 12 02  -> RET 13 02 <codec>
@@ -77,6 +89,15 @@ namespace V2Command
 	inline constexpr unsigned char SUB_ADAPTIVE_VOLUME = 0x0a;
 	inline constexpr unsigned char SUB_SPEAK_TO_CHAT   = 0x0c;
 }
+
+// Sound quality mode ("Bluetooth connection quality" in the Sony app) - the value byte of the
+// AUDIO CONNECTION_MODE sub-types. Sony's PriorMode enum also has LOW_LATENCY_PRIOR_BETA (0x02), which
+// no shipping model exposes in its app, so we don't offer it.
+enum class PRIOR_MODE : unsigned char
+{
+	SOUND_QUALITY = 0x00,
+	STABLE_CONNECTION = 0x01
+};
 
 // v2 equalizer preset ids (byte value sent/received at EQ payload[2]).
 enum class EQ_PRESET : unsigned char

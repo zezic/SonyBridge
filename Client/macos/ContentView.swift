@@ -79,6 +79,9 @@ struct ContentView: View {
                     equalizerCard
                     dseeCard
                 }
+                if model.hasSoundQualityMode {
+                    soundQualityCard
+                }
                 if model.hasAdaptiveVolume || model.hasSpeakToChat || model.hasAutoPowerOff {
                     settingsCard
                 }
@@ -322,6 +325,50 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var soundQualityCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Bluetooth Connection")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                Spacer()
+                if !model.codec.isEmpty {
+                    Text(model.codec)
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundColor(Theme.secondary)
+                }
+            }
+            HStack(spacing: 8) {
+                priorityChip("Sound Quality", selected: model.prioritizeSoundQuality) {
+                    model.setPrioritizeSoundQuality(true)
+                }
+                priorityChip("Stable Connection", selected: !model.prioritizeSoundQuality) {
+                    model.setPrioritizeSoundQuality(false)
+                }
+            }
+            Text("The headphones reconnect to apply this.")
+                .font(.system(size: 11))
+                .foregroundColor(Theme.secondary)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func priorityChip(_ name: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(name)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(selected ? .white : Theme.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(selected ? Theme.accent : Theme.cardHi)
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 
     private func eqChip(_ name: String, _ code: Int) -> some View {
